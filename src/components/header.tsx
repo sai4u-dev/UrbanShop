@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { useCart } from "@/store/cart";
 
 export function Header() {
   return (

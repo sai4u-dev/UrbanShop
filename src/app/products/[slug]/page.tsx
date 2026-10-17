@@ -3,9 +3,16 @@ import { db } from "@/lib/db";
 import { formatPrice } from "@/lib/utils";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const product = await db.product.findUnique({ where: { slug }, include: { images: true, category: true } });
+  let product = null;
+  try {
+    product = await db.product.findUnique({ where: { slug }, include: { images: true, category: true } });
+  } catch {
+    notFound();
+  }
   if (!product) notFound();
 
   return (

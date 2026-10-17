@@ -1,11 +1,10 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import GitHub from "next-auth/providers/github";
-import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { authConfig } from "@/lib/auth.config";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -13,18 +12,10 @@ const credentialsSchema = z.object({
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(db),
-  session: { strategy: "jwt" },
-  trustHost: true,
   providers: [
-    GitHub({
-      clientId: process.env.AUTH_GITHUB_ID,
-      clientSecret: process.env.AUTH_GITHUB_SECRET,
-    }),
-    Google({
-      clientId: process.env.AUTH_GOOGLE_ID,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET,
-    }),
+    ...authConfig.providers!,
     Credentials({
       name: "Email",
       credentials: { email: { label: "Email" }, password: { label: "Password", type: "password" } },
@@ -40,7 +31,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    ...authConfig.callbacks,
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.sub = user.id;
         // Attach role from DB (single query per login)
@@ -49,6 +41,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           select: { role: true },
         });
         (token as unknown as Record<string, unknown>).role = dbUser?.role ?? "CUSTOMER";
+      }
+      // Keep existing role on token updates
+      if (trigger === "update") {
+        return token;
       }
       return token;
     },
@@ -60,9 +56,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
-  },
-  pages: {
-    signIn: "/login",
-    error: "/login",
   },
 });

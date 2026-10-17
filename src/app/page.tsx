@@ -2,13 +2,20 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { ProductCard } from "@/components/product-card";
 
+export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [featured, categories] = await Promise.all([
-    db.product.findMany({ where: { isActive: true, isFeatured: true }, take: 8, include: { images: { take: 1 } }, orderBy: { createdAt: "desc" } }),
-    db.category.findMany({ take: 6, orderBy: { name: "asc" } }),
-  ]);
+  let featured: Array<{ id: string; slug: string; name: string; price: number; images: { url: string; alt?: string | null }[] }> = [];
+  let categories: Array<{ id: string; slug: string; name: string }> = [];
+  try {
+    [featured, categories] = await Promise.all([
+      db.product.findMany({ where: { isActive: true, isFeatured: true }, take: 8, include: { images: { take: 1 } }, orderBy: { createdAt: "desc" } }),
+      db.category.findMany({ take: 6, orderBy: { name: "asc" } }),
+    ]);
+  } catch {
+    // DB unavailable during build/prerender — render empty sections
+  }
 
   return (
     <div className="space-y-12">
